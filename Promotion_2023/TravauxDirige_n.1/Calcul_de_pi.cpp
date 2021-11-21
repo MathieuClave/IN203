@@ -60,6 +60,31 @@ int main( int nargs, char* argv[] )
 	std::ofstream output( fileName.str().c_str() );
 
 	// Rajout de code....
+	unsigned long nbSamples = 1000000000;
+	std::cout << "Hello World, I'm processus " << rank << " on " << nbp << " processes.\n";
+
+	if (rank==0) {
+		double ratioPerso = approximate_pi(nbSamples);
+		double ratioTotal = ratioPerso / nbp;
+		std::cout << "Approximation : " << ratioTotal << "\n";
+		double otherRatio;
+		MPI_Status status;
+		for (int i=1; i<nbp-1; i++) {
+			MPI_Recv(&otherRatio, 1, MPI_INT, i, 0, MPI_COMM_WORLD ,&status);
+			std::cout << rank << " : Message recieved : " << otherRatio <<"\n";
+			ratioTotal = ratioTotal + (otherRatio/nbp);
+			std::cout << "Approximation changed to : " << ratioTotal << "\n";
+		}
+		std::cout << rank << " : Pi approximation : " << ratioTotal <<"\n";
+		
+	}
+	else if (rank!=nbp-1) {
+		double ratio = approximate_pi(nbSamples);
+		
+		MPI_Send(&ratio, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
+		std::cout << rank << " : Message sent : " << ratio <<"\n";
+	}
+
 
 	output.close();
 	// A la fin du programme, on doit synchroniser une dernière fois tous les processus

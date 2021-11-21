@@ -4,7 +4,18 @@
 # include <fstream>
 # include <iostream>
 # include <iomanip>
+#include <math.h>
 # include <mpi.h>
+
+int highestPower (int number) {
+	int compt = 0;
+	int result = 0 ;
+	while (number >= pow(2,compt)) {
+		result = compt;
+		compt ++;
+	}
+	return result;
+}
 
 int main( int nargs, char* argv[] )
 {
@@ -36,6 +47,29 @@ int main( int nargs, char* argv[] )
 	std::ofstream output( fileName.str().c_str() );
 
 	// Rajout du programme ici...
+	int dimension = 4;
+
+	if (rank==0) {
+		int jeton = 3141592;
+		for (int i = 0; i<dimension; i++){
+			MPI_Send(&jeton, 1, MPI_INT, pow(2,i), 0, MPI_COMM_WORLD);
+			std::cout << rank << " : Message sent : " << jeton <<" to : " << pow(2,i) << "\n";
+		}
+	}
+	else {
+		int jeton;
+		MPI_Status status;
+		int hP = highestPower(rank);
+		MPI_Recv(&jeton, 1, MPI_INT, rank-hP, 0, MPI_COMM_WORLD ,&status);
+		std::cout << rank << " : Message recieved : " << jeton <<"\n";
+		for (int i = hP+1; i<dimension; i++){
+			MPI_Send(&jeton, 1, MPI_INT, pow(2,i), 0, MPI_COMM_WORLD);
+			std::cout << rank << " : Message sent : " << jeton <<" to : " << pow(2,i) << "\n";
+		}
+	}
+
+
+
 	
 	output.close();
 	// A la fin du programme, on doit synchroniser une dernière fois tous les processus
