@@ -11,6 +11,7 @@
  * complex proposée par g++ est très lente ! Le calcul est bien plus rapide
  * avec la petite structure donnée ci--dessous
  **/
+
 struct Complex
 {
     Complex() : real(0.), imag(0.)
@@ -105,16 +106,26 @@ computeMandelbrotSet( int W, int H, int maxIter )
 	if (rank == 0){
 		std::chrono::time_point<std::chrono::system_clock> start, end;
 		std::vector<int> pixels(W*H);
+        std::vector<int> otherPixels(W*H);
 		start = std::chrono::system_clock::now();
 		
 		
-		for (int i = 0; i<H and i%nbp==0; ++i) {
-			computeMandelbrotSetRow(W, H, maxIter, i, pixels.data() + W*(H-i-1) );
+		for (int i = 0; i<H; ++i) {
+            if (i%nbp == 0){
+                computeMandelbrotSetRow(W, H, maxIter, i, pixels.data() + W*i );
+                //std::cout << rank << " : Calculted lign " << i << "\n";
+            }	
 		}
 		MPI_Status status;
 		for (int R = 1; R<nbp; ++R){
-			MPI_Recv(pixels.data(), W, MPI_INT, R, 0, MPI_COMM_WORLD ,&status);
-			std::cout << rank << " : Message recieved from " << R <<"\n";
+            for(int j=0; j<W*H; ++j){
+                otherPixels[j] = 0;
+            }
+			MPI_Recv(otherPixels.data(), W*H, MPI_INT, R, 0, MPI_COMM_WORLD ,&status);
+			for(int j=0; j<W*H; ++j){
+                pixels[j] = pixels[j] + otherPixels[j];
+            }
+            std::cout << rank << " : Message recieved from " << R <<"\n";
 		}
 		
 		end = std::chrono::system_clock::now();
@@ -124,17 +135,21 @@ computeMandelbrotSet( int W, int H, int maxIter )
 		return pixels;
 	}
 	
-	else {
+	else { 
 		std::vector<int> pixels(W*H);
-		for (int i = 0; i<H and i%nbp==rank; ++i) {
-			computeMandelbrotSetRow(W, H, maxIter, i, pixels.data() + W*(H-i-1) );
-		}
-		MPI_Send(pixels.data(), W, MPI_INT, 0, 0, MPI_COMM_WORLD);
+		for (int i = 0; i<H; ++i) {
+			if ( i%nbp==rank) {
+                computeMandelbrotSetRow(W, H, maxIter, i, pixels.data() + W*i );
+		        //std::cout << rank << " : Calculted lign " << i << "\n";
+            }
+        }
+		MPI_Send(pixels.data(), W*H, MPI_INT, 0, 0, MPI_COMM_WORLD);
 		std::cout << rank << " : Message sent " <<"\n";
 	}    
-	std::vector<int> nul(2);
-	nul[0] = 0;
-	nul[1] = 0;
+	std::vector<int> nul(W*H);
+	for(int j=0; j<W*H; ++j){
+        nul[j]=0;
+    }
 	return nul;
 }
 
@@ -157,7 +172,8 @@ void savePicture( const std::string& filename, int W, int H, const std::vector<i
 
 int main(int argc, char *argv[] ) 
  { 
-	MPI_Init( &argc, &argv );
+	
+    MPI_Init( &argc, &argv );
     const int W = 800;
     const int H = 600;
     // Normalement, pour un bon rendu, il faudrait le nombre d'itérations
@@ -165,11 +181,13 @@ int main(int argc, char *argv[] )
     //const int maxIter = 16777216;
     const int maxIter = 8*65536;
     auto iters = computeMandelbrotSet( W, H, maxIter );
-    std::vector<int> nul(2);
-	nul[0] = 0;
-	nul[1] = 0;
+    std::vector<int> nul(W*H);
+	for(int j=0; j<W*H; ++j){
+        nul[j]=0;
+    }
 	if (iters != nul) {
 		savePicture("mandelbrot.tga", W, H, iters, maxIter);
+        std::cout << "Image saved\n";
 	}
 	MPI_Finalize();
     return EXIT_SUCCESS;
