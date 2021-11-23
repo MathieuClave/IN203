@@ -2,6 +2,8 @@
 # include <cassert>
 # include <vector>
 # include <iostream>
+# include <mpi.h>
+
 
 // ---------------------------------------------------------------------
 class Matrix : public std::vector<double>
@@ -98,13 +100,66 @@ Matrix::Matrix( int nrows, int ncols ) : m_nrows(nrows), m_ncols(ncols),
 // =====================================================================
 int main( int nargs, char* argv[] )
 {
-    const int N = 120;
+    const int N = 12;
     Matrix A(N);
-    std::cout  << "A : " << A << std::endl;
     std::vector<double> u( N );
     for ( int i = 0; i < N; ++i ) u[i] = i+1;
-    std::cout << " u : " << u << std::endl;
-    std::vector<double> v = A*u;
-    std::cout << "A.u = " << v << std::endl;
+    
+    
+    MPI_Init( &nargs, &argv );
+    MPI_Comm globComm;
+	MPI_Comm_dup(MPI_COMM_WORLD, &globComm);
+	int nbp;
+	MPI_Comm_size(globComm, &nbp);
+	int rank;
+	MPI_Comm_rank(globComm, &rank);
+	std::cout << "Hello World, I'm processus " << rank << " on " << nbp << " processes.\n";
+
+    int Nloc = N/nbp ;
+
+/*
+    if (rank ==0){
+        std::cout  << "A : " << A << std::endl;
+        std::cout << " u : " << u << std::endl;
+        std::vector<double> check = A*u;
+        std::cout << rank << " : Vérification A.u = " << check << std::endl;
+    }
+*/
+    
+    //En colonnes :
+    Matrix B(N,Nloc);
+    for (int i=0; i<N; ++i){
+        for(int j=0; j<Nloc; ++j) {
+            B(i,j) = A(i, j + rank*Nloc);
+        }
+    }
+    std::vector<double> v(Nloc);
+    for (int i=0; i<Nloc; ++i) {
+        v[i] = u[i + rank*Nloc];
+    }
+
+    std::vector<double> part = B*v;
+    std::cout << rank << " : Part = " << part << std::endl;
+    std::vector<double> total(N);
+    MPI_Allreduce(part.data(), total.data(), N, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    
+
+/*
+    //En lignes :
+    Matrix B(Nloc,N);
+    for (int i=0; i<Nloc; ++i){
+        for(int j=0; j<N; ++j) {
+            B(i,j) = A(i+ rank*Nloc, j);
+        }
+    }
+
+    std::vector<double> part = B*u;
+    std::cout << rank << " : Part = " << part << std::endl;
+    std::vector<double> total(N);
+    MPI_Allgather(part.data(), Nloc, MPI_DOUBLE, total.data(), Nloc, MPI_DOUBLE, MPI_COMM_WORLD);
+*/
+    
+    std::cout << rank << " : A.u = " << total << std::endl;
+    MPI_Finalize();
     return EXIT_SUCCESS;
 }
