@@ -12,7 +12,7 @@
 
            | Taille image : 800 x 600 | 
 -----------+---------------------------
-séquentiel |              
+séquentiel | Chaque process calcule les lignes i tq i%nbp = rank              
 1          |              
 2          |              
 3          |              
@@ -40,3 +40,4 @@ séquentiel |
 
 
 *Expliquer la façon dont vous avez calculé la dimension locale sur chaque processus, en particulier quand le nombre de processus ne divise pas la dimension de la matrice.*
+On a supposé la divisabilité, Nloc = N/nbp
