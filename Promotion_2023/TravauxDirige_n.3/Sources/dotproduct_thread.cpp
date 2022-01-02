@@ -4,7 +4,9 @@
 # include <iostream>
 # include <algorithm>
 # include <chrono>
-#include  <thread>
+# include  <thread>
+# include <omp.h>
+
 void dot_part( const std::vector<double>& u, const std::vector<double>& v, 
             int deb, int fin, double& scal )
 {
@@ -21,17 +23,18 @@ double dot( std::vector<double>& u, std::vector<double>& v )
   std::vector<double> partial_sums(num_threads);
   std::size_t dim_loc = u.size()/num_threads;
   int reste = u.size()%num_threads;
-  for ( int it = 0; it < num_threads; ++it ) {
-    int deb, fin;
-    if (it < reste)
-    {
-      deb = it * (dim_loc+1); fin = (it+1)*(dim_loc+1);
-    }
-    else
-    {
-      deb = it*dim_loc + reste; fin = (it+1)*dim_loc + reste;
-    }
-    threads.emplace_back(dot_part, std::cref(u), std::cref(v), deb, fin, std::ref(partial_sums[it]) );
+  /*# pragma omp parallel for*/
+    for ( int it = 0; it < num_threads; ++it ) {
+      int deb, fin;
+      if (it < reste)
+      {
+        deb = it * (dim_loc+1); fin = (it+1)*(dim_loc+1);
+      }
+      else
+      {
+        deb = it*dim_loc + reste; fin = (it+1)*dim_loc + reste;
+      }
+      threads.emplace_back(dot_part, std::cref(u), std::cref(v), deb, fin, std::ref(partial_sums[it]) );
   }
   for ( auto& th : threads ) th.join();
   double global_sum = 0.;
