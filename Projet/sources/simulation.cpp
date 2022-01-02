@@ -85,12 +85,15 @@ void simulation(bool affiche)
 	MPI_Comm_size(globComm, &nbp);
     MPI_Comm_rank(globComm, &rank);
     MPI_Status status;
-    const int tag = 101;
+    int tag = 101; //Osef de la valeur
+    int signal; //Signifie : je suis en attente de la suite.
 
     if(rank == 0){ //Affichage
 
-        std::chrono::time_point<std::chrono::system_clock> start, end;
+        std::chrono::time_point<std::chrono::system_clock> start, end, start_jours, end_jours;
         std::chrono::duration<double> temps_affichage;
+        std::chrono::duration<double> temps_total;
+        start_jours = std::chrono::system_clock::now();
 
         constexpr const unsigned int largeur_écran = 1280, hauteur_écran = 1024;
         sdl2::window écran("Simulation épidémie de grippe", {largeur_écran,hauteur_écran});
@@ -126,10 +129,11 @@ void simulation(bool affiche)
 
             int taille = largeur_grille*hauteur_grille;
             std::vector<int> grippe_vector(taille), agent_vector(taille), les_deux_vector(taille);
+            MPI_Send(&signal, 1, MPI_INT, 1, tag, globComm); //Préviens qu'il attends la suite
 
-            MPI_Recv(grippe_vector.data(), taille, MPI_INT, 1, tag, globComm, &status);
-            MPI_Recv(agent_vector.data(), taille, MPI_INT, 1, tag, globComm, &status); 
-            MPI_Recv(les_deux_vector.data(), taille, MPI_INT, 1, tag, globComm, &status);
+            MPI_Recv(grippe_vector.data(), taille, MPI_INT, 1, MPI_ANY_TAG, globComm, &status);
+            MPI_Recv(agent_vector.data(), taille, MPI_INT, 1, MPI_ANY_TAG, globComm, &status); 
+            MPI_Recv(les_deux_vector.data(), taille, MPI_INT, 1, MPI_ANY_TAG, globComm, &status);
             
             for ( unsigned short i = 0; i < largeur_grille; ++i ){
                 for (unsigned short j = 0; j < hauteur_grille; ++j ){
@@ -141,8 +145,8 @@ void simulation(bool affiche)
                 }
             }
             
-            MPI_Recv(&jours_écoulés, 1, MPI_UNSIGNED, 1, tag, globComm, &status);
-            MPI_Recv(&temps_calcul, 1, MPI_DOUBLE, 1, tag, globComm, &status);
+            MPI_Recv(&jours_écoulés, 1, MPI_UNSIGNED, 1, MPI_ANY_TAG, globComm, &status);
+            MPI_Recv(&temps_calcul, 1, MPI_DOUBLE, 1, MPI_ANY_TAG, globComm, &status);
 
             //#############################################################################################################
             //##    Affichage des résultats pour le temps  actuel
@@ -159,7 +163,14 @@ void simulation(bool affiche)
 
             end = std::chrono::system_clock::now();
             temps_affichage = end - start;
-            std::cout << "Calcul : " << temps_calcul << "      Affichage : " << temps_affichage.count() << std::endl;
+            //std::cout << "Calcul : " << temps_calcul << "      Affichage : " << temps_affichage.count() << std::endl;
+
+            if(jours_écoulés > 1000){
+                end_jours = std::chrono::system_clock::now();
+                temps_total = end_jours - start_jours;
+                std::cout << jours_écoulés << " écoulés, temps total : " << temps_total.count() << std::endl;
+            }
+            if(jours_écoulés > 1001) quitting =true;
             
         }
 
@@ -276,35 +287,42 @@ void simulation(bool affiche)
 
 
 
-
-
             //Envoi des infos calculées : grille, jours_écoulés, temps_calcul
-            auto [largeur_grille,hauteur_grille] = grille.dimension();
-            auto const& statistiques = grille.getStatistiques();
+            int flag = 0;
+            MPI_Iprobe( 0, MPI_ANY_TAG, globComm, &flag, &status );
             
-            int taille = largeur_grille*hauteur_grille;
-            std::vector<int> grippe_vector(taille), agent_vector(taille), les_deux_vector(taille);
+            if (flag == 1) {
+                
+                MPI_Recv(&signal, 1, MPI_INT, 0, MPI_ANY_TAG, globComm, &status); //Libère le processus 0
 
-            for ( unsigned short i = 0; i < largeur_grille; ++i ){
-                for (unsigned short j = 0; j < hauteur_grille; ++j ){
-                    auto& stat = statistiques[i+j*largeur_grille];
-                    
-                    grippe_vector[i+j*largeur_grille] = stat.nombre_contaminant_seulement_grippé;
-                    agent_vector[i+j*largeur_grille] = stat.nombre_contaminant_seulement_contaminé_par_agent;
-                    les_deux_vector[i+j*largeur_grille] = stat.nombre_contaminant_grippé_et_contaminé_par_agent; 
+                auto [largeur_grille,hauteur_grille] = grille.dimension();
+                auto const& statistiques = grille.getStatistiques();
+                
+                int taille = largeur_grille*hauteur_grille;
+                std::vector<int> grippe_vector(taille), agent_vector(taille), les_deux_vector(taille);
+
+                for ( unsigned short i = 0; i < largeur_grille; ++i ){
+                    for (unsigned short j = 0; j < hauteur_grille; ++j ){
+                        auto& stat = statistiques[i+j*largeur_grille];
+                        
+                        grippe_vector[i+j*largeur_grille] = stat.nombre_contaminant_seulement_grippé;
+                        agent_vector[i+j*largeur_grille] = stat.nombre_contaminant_seulement_contaminé_par_agent;
+                        les_deux_vector[i+j*largeur_grille] = stat.nombre_contaminant_grippé_et_contaminé_par_agent; 
+                    }
                 }
+                MPI_Send(grippe_vector.data(), taille, MPI_INT, 0, tag, globComm);
+                MPI_Send(agent_vector.data(), taille, MPI_INT, 0, tag, globComm); 
+                MPI_Send(les_deux_vector.data(), taille, MPI_INT, 0, tag, globComm); 
+
+                unsigned int j = jours_écoulés;
+                MPI_Send(&j, 1, MPI_UNSIGNED, 0, tag, globComm);
+
+                end = std::chrono::system_clock::now();
+                temps_calcul = end - start;
+                double t = temps_calcul.count();
+                MPI_Send(&t, 1, MPI_DOUBLE, 0, tag, globComm);
             }
-            MPI_Send(grippe_vector.data(), taille, MPI_INT, 0, tag, globComm);
-            MPI_Send(agent_vector.data(), taille, MPI_INT, 0, tag, globComm); 
-            MPI_Send(les_deux_vector.data(), taille, MPI_INT, 0, tag, globComm); 
-
-            unsigned int j = jours_écoulés;
-            MPI_Send(&j, 1, MPI_UNSIGNED, 0, tag, globComm);
-
-            end = std::chrono::system_clock::now();
-            temps_calcul = end - start;
-            double t = temps_calcul.count();
-            MPI_Send(&t, 1, MPI_DOUBLE, 0, tag, globComm);
+            if(jours_écoulés > 1001) quitting = true;
         }
     }
 }

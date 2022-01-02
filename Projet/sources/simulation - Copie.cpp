@@ -123,9 +123,11 @@ void simulation(bool affiche)
     épidémie::Grippe grippe(0);
 
     
-    std::chrono::time_point<std::chrono::system_clock> start, end, end2;
+    std::chrono::time_point<std::chrono::system_clock> start, end, end2, start_jours, end_jours;
     std::chrono::duration<double> calcul ;
     std::chrono::duration<double> affichage;
+    std::chrono::duration<double> temps_total;
+    start_jours = std::chrono::system_clock::now();
 
     std::cout << "Début boucle épidémie" << std::endl << std::flush;
     while (!quitting)
@@ -204,6 +206,13 @@ void simulation(bool affiche)
         calcul = end - start;
         affichage = end2 - end;
         std::cout << "Calcul : " << calcul.count() << "      Affichage : " << affichage.count() << std::endl;
+
+        if(jours_écoulés > 1000){
+            end_jours = std::chrono::system_clock::now();
+            temps_total = end_jours - start_jours;
+            std::cout << jours_écoulés << " écoulés, temps total : " << temps_total.count() << std::endl;
+        }
+        if(jours_écoulés > 1001) quitting =true;
 
         //if(calcul + affichage > (std::chrono::duration<double>) 10.0) quitting = true;
     }// Fin boucle temporelle

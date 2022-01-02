@@ -123,19 +123,21 @@ void simulation(bool affiche)
 
             //Réception des calculs : grille, jours_écoulés, temps_calcul
             start = std::chrono::system_clock::now(); 
+
+            int taille = largeur_grille*hauteur_grille;
+            std::vector<int> grippe_vector(taille), agent_vector(taille), les_deux_vector(taille);
+
+            MPI_Recv(grippe_vector.data(), taille, MPI_INT, 1, tag, globComm, &status);
+            MPI_Recv(agent_vector.data(), taille, MPI_INT, 1, tag, globComm, &status); 
+            MPI_Recv(les_deux_vector.data(), taille, MPI_INT, 1, tag, globComm, &status);
             
             for ( unsigned short i = 0; i < largeur_grille; ++i ){
                 for (unsigned short j = 0; j < hauteur_grille; ++j ){
                     auto& stat = statistiques[i+j*largeur_grille];
-                    int grippe;
-                    int agent;
-                    int les_deux;
-                    MPI_Recv(&grippe, 1, MPI_INT, 1, tag, globComm, &status);
-                    MPI_Recv(&agent, 1, MPI_INT, 1, tag, globComm, &status); 
-                    MPI_Recv(&les_deux, 1, MPI_INT, 1, tag, globComm, &status);
-                    stat.nombre_contaminant_seulement_grippé = grippe;
-                    stat.nombre_contaminant_seulement_contaminé_par_agent = agent;
-                    stat.nombre_contaminant_grippé_et_contaminé_par_agent = les_deux;
+                    
+                    stat.nombre_contaminant_seulement_grippé = grippe_vector[i+j*largeur_grille];
+                    stat.nombre_contaminant_seulement_contaminé_par_agent = agent_vector[i+j*largeur_grille];
+                    stat.nombre_contaminant_grippé_et_contaminé_par_agent = les_deux_vector[i+j*largeur_grille];
                 }
             }
             
@@ -279,20 +281,23 @@ void simulation(bool affiche)
             //Envoi des infos calculées : grille, jours_écoulés, temps_calcul
             auto [largeur_grille,hauteur_grille] = grille.dimension();
             auto const& statistiques = grille.getStatistiques();
+            
+            int taille = largeur_grille*hauteur_grille;
+            std::vector<int> grippe_vector(taille), agent_vector(taille), les_deux_vector(taille);
 
             for ( unsigned short i = 0; i < largeur_grille; ++i ){
                 for (unsigned short j = 0; j < hauteur_grille; ++j ){
                     auto& stat = statistiques[i+j*largeur_grille];
                     
-                    int grippe = stat.nombre_contaminant_seulement_grippé;
-                    int agent = stat.nombre_contaminant_seulement_contaminé_par_agent;
-                    int les_deux = stat.nombre_contaminant_grippé_et_contaminé_par_agent;
-
-                    MPI_Send(&grippe, 1, MPI_INT, 0, tag, globComm);
-                    MPI_Send(&agent, 1, MPI_INT, 0, tag, globComm); 
-                    MPI_Send(&les_deux, 1, MPI_INT, 0, tag, globComm);  
+                    grippe_vector[i+j*largeur_grille] = stat.nombre_contaminant_seulement_grippé;
+                    agent_vector[i+j*largeur_grille] = stat.nombre_contaminant_seulement_contaminé_par_agent;
+                    les_deux_vector[i+j*largeur_grille] = stat.nombre_contaminant_grippé_et_contaminé_par_agent; 
                 }
             }
+            MPI_Send(grippe_vector.data(), taille, MPI_INT, 0, tag, globComm);
+            MPI_Send(agent_vector.data(), taille, MPI_INT, 0, tag, globComm); 
+            MPI_Send(les_deux_vector.data(), taille, MPI_INT, 0, tag, globComm); 
+
             unsigned int j = jours_écoulés;
             MPI_Send(&j, 1, MPI_UNSIGNED, 0, tag, globComm);
 
@@ -322,3 +327,4 @@ int main(int argc, char* argv[])
     sdl2::finalize();
     return EXIT_SUCCESS;
 }
+
