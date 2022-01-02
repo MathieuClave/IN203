@@ -122,7 +122,8 @@ void simulation(bool affiche)
             }
 
             //Réception des calculs : grille, jours_écoulés, temps_calcul
-
+            start = std::chrono::system_clock::now(); 
+            
             for ( unsigned short i = 0; i < largeur_grille; ++i ){
                 for (unsigned short j = 0; j < hauteur_grille; ++j ){
                     auto& stat = statistiques[i+j*largeur_grille];
@@ -144,8 +145,7 @@ void simulation(bool affiche)
             //#############################################################################################################
             //##    Affichage des résultats pour le temps  actuel
             //#############################################################################################################
-            start = std::chrono::system_clock::now(); 
-
+            
             if (affiche) afficheSimulation(écran, grille, jours_écoulés);
             
             /*std::cout << jours_écoulés << "\t" << grille.nombreTotalContaminésGrippe() << "\t"
@@ -270,8 +270,7 @@ void simulation(bool affiche)
             }
             jours_écoulés += 1;
 
-            end = std::chrono::system_clock::now();
-            temps_calcul = end - start;
+            
 
 
 
@@ -296,6 +295,9 @@ void simulation(bool affiche)
             }
             unsigned int j = jours_écoulés;
             MPI_Send(&j, 1, MPI_UNSIGNED, 0, tag, globComm);
+
+            end = std::chrono::system_clock::now();
+            temps_calcul = end - start;
             double t = temps_calcul.count();
             MPI_Send(&t, 1, MPI_DOUBLE, 0, tag, globComm);
         }
