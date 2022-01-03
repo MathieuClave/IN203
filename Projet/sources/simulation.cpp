@@ -245,7 +245,7 @@ void simulation(bool affiche)
                 {
                     population[ipersonne].devientImmuniséGrippe();
                 }
-            #   pragma omp parallel for 
+            #   pragma omp parallel for
                 for ( int ipersonne = nombre_immunisés_grippe; ipersonne < int(contexte.taux_population); ++ipersonne )
                 {
                     population[ipersonne].redevientSensibleGrippe();
@@ -267,7 +267,7 @@ void simulation(bool affiche)
             // On parcout la population pour voir qui est contaminé et qui ne l'est pas, d'abord pour la grippe puis pour l'agent pathogène
             std::size_t compteur_grippe = 0, compteur_agent = 0, mouru = 0;
             unsigned nouvelle_graine;
-        #   pragma omp parallel for shared(nouvelle_graine)
+        #   pragma omp parallel for shared(nouvelle_graine) 
             for ( auto& personne : population )
             {
                 if (personne.testContaminationGrippe(grille, contexte.interactions, grippe, agent))
