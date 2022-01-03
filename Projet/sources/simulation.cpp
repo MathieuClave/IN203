@@ -354,6 +354,8 @@ int main(int argc, char* argv[])
         simulation(affiche);
     }
     sdl2::finalize();
+
+    MPI_Finalize();
     return EXIT_SUCCESS;
 }
 

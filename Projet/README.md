@@ -55,4 +55,24 @@ lscpu : 12 CPUs
 4) Parallélisation OpenMP
 
     Temps total pour 1000 jours : 10.1 secondes, Speedup = 6.2
+    Je n'ai pas réussi à conserver la graine.
         
+
+5) Parallélisation MPI de la simulation
+
+    Paralléliser les mises-à-jour est une mauvaise idée en mémoire non-partagée.
+    Il faut donc paralléliser le reste, puis gather les individus traités et les grilles modifiées.
+    Pour les individus, il suffit de faire des vecteurs-copie plus courts, de traiter (impossible sans la grille), puis de réassembler. En revanche, pour la grille, s'il faut la réenvoyer à chaque fois avec la technique précédente(en O(population)), cela ne vaut pas le coup de paralléliser.
+    Je n'ai pas de solution efficace à la Parallélisation MPI.
+    Conclusion, je n'ai probablement pas compris la consigne.
+
+
+5.1) Parallélisation finale  
+
+    Je n'ai pas réussi MPI, et je n'ai pas accès à un réseau d'ordinateur.
+
+
+5.2) Bilan
+
+    L'exercice 4) donne un speedup de 6, ce qui est plutôt bon pour la configuration de mon ordinateur.
+    Cette version combine des techniques MPI et OpenMP, ce qui a rendu leurs interactions plus claires à mes yeux.
