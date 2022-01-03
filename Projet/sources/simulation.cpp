@@ -4,12 +4,14 @@
 #include <fstream>
 #include <chrono>
 #include <mpi.h>
+#include <omp.h>
 #include "contexte.hpp"
 #include "individu.hpp"
 #include "graphisme/src/SDL2/sdl2.hpp"
 
 void màjStatistique( épidémie::Grille& grille, std::vector<épidémie::Individu> const& individus )
 {
+#   pragma omp parallel for 
     for ( auto& statistique : grille.getStatistiques() )
     {
         statistique.nombre_contaminant_grippé_et_contaminé_par_agent = 0;
@@ -18,6 +20,8 @@ void màjStatistique( épidémie::Grille& grille, std::vector<épidémie::Indivi
     }
     auto [largeur,hauteur] = grille.dimension();
     auto& statistiques = grille.getStatistiques();
+
+#   pragma omp parallel for 
     for ( auto const& personne : individus )
     {
         auto pos = personne.position();
@@ -163,12 +167,13 @@ void simulation(bool affiche)
 
             end = std::chrono::system_clock::now();
             temps_affichage = end - start;
+            //std::cout << jours_écoulés << " jours écoulés." << std::endl;
             //std::cout << "Calcul : " << temps_calcul << "      Affichage : " << temps_affichage.count() << std::endl;
 
             if(jours_écoulés > 1000){
                 end_jours = std::chrono::system_clock::now();
                 temps_total = end_jours - start_jours;
-                std::cout << jours_écoulés << " écoulés, temps total : " << temps_total.count() << std::endl;
+                std::cout << jours_écoulés << " jours écoulés, temps total : " << temps_total.count() << std::endl;
             }
             if(jours_écoulés > 1001) quitting =true;
             
@@ -235,10 +240,12 @@ void simulation(bool affiche)
                 jour_apparition_grippe = grippe.dateCalculImportationGrippe();
                 grippe.calculNouveauTauxTransmission();
                 // 23% des gens sont immunisés. On prend les 23% premiers
+            #   pragma omp parallel for 
                 for ( int ipersonne = 0; ipersonne < nombre_immunisés_grippe; ++ipersonne)
                 {
                     population[ipersonne].devientImmuniséGrippe();
                 }
+            #   pragma omp parallel for 
                 for ( int ipersonne = nombre_immunisés_grippe; ipersonne < int(contexte.taux_population); ++ipersonne )
                 {
                     population[ipersonne].redevientSensibleGrippe();
@@ -246,6 +253,7 @@ void simulation(bool affiche)
             }
             if (jours_écoulés%365 == std::size_t(jour_apparition_grippe))
             {
+            #   pragma omp parallel for 
                 for (int ipersonne = nombre_immunisés_grippe; ipersonne < nombre_immunisés_grippe + 25; ++ipersonne )
                 {
                     population[ipersonne].estContaminé(grippe);
@@ -258,6 +266,8 @@ void simulation(bool affiche)
             màjStatistique(grille, population);
             // On parcout la population pour voir qui est contaminé et qui ne l'est pas, d'abord pour la grippe puis pour l'agent pathogène
             std::size_t compteur_grippe = 0, compteur_agent = 0, mouru = 0;
+            unsigned nouvelle_graine;
+        #   pragma omp parallel for shared(nouvelle_graine)
             for ( auto& personne : population )
             {
                 if (personne.testContaminationGrippe(grille, contexte.interactions, grippe, agent))
@@ -274,7 +284,7 @@ void simulation(bool affiche)
                 if (personne.doitMourir())
                 {
                     mouru++;
-                    unsigned nouvelle_graine = jours_écoulés + personne.position().x*personne.position().y;
+                    nouvelle_graine = jours_écoulés + personne.position().x*personne.position().y;
                     personne = épidémie::Individu(nouvelle_graine, contexte.espérance_de_vie, contexte.déplacement_maximal);
                     personne.setPosition(largeur_grille, hauteur_grille);
                 }
@@ -301,6 +311,7 @@ void simulation(bool affiche)
                 int taille = largeur_grille*hauteur_grille;
                 std::vector<int> grippe_vector(taille), agent_vector(taille), les_deux_vector(taille);
 
+            #   pragma omp parallel for 
                 for ( unsigned short i = 0; i < largeur_grille; ++i ){
                     for (unsigned short j = 0; j < hauteur_grille; ++j ){
                         auto& stat = statistiques[i+j*largeur_grille];
@@ -322,7 +333,7 @@ void simulation(bool affiche)
                 double t = temps_calcul.count();
                 MPI_Send(&t, 1, MPI_DOUBLE, 0, tag, globComm);
             }
-            if(jours_écoulés > 1001) quitting = true;
+            if(jours_écoulés > 1020) quitting = true;
         }
     }
 }

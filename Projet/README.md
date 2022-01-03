@@ -5,7 +5,11 @@
 
 Et si besoin modifier Makefile et Make_linux.inc pour utiliser g++-10. 
 
+
+
 lscpu : 12 CPUs
+
+
 
 1) Mesure du temps 
     
@@ -14,6 +18,7 @@ lscpu : 12 CPUs
     (moyenne "à l'oeil", pas de vrai calcul statistique)
 
     Temps total pour 1000 jours : 62.2963 secondes
+
 
 2) Parallélisation affichage contre simulation
 
@@ -38,10 +43,16 @@ lscpu : 12 CPUs
     Temps moyen d'affichage à chaque étape : 0.047 secondes.
     (moyenne "à l'oeil", pas de vrai calcul statistique)
         Pas mal. On a presque rattrappé la vitesse initiale.
+
     
 3) Parallélisation affichage asynchrone contre simulation
 
     Le Temps par étape n'a plus de sens.
 
-    Temps total pour 1000 jours : 18.6515 secondes, Speedup = 3.3
+    Temps total pour 1000 jours : 18.6 secondes, Speedup = 3.3
+
+
+4) Parallélisation OpenMP
+
+    Temps total pour 1000 jours : 10.1 secondes, Speedup = 6.2
         
